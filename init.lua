@@ -166,8 +166,8 @@ if syn and syn.websocket then
         return HttpGet(self, ...);
     end);
 
-    local HttpPost;
-    HttpPost = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
+    local HttpService;
+    HttpService = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
         printf("game.HttpService(game, %s)\n\n", Serializer.FormatArguments(...));
         return HttpPost(self, ...);
     end);
