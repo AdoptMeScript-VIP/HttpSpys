@@ -176,7 +176,7 @@ end
 for method, enabled in Pairs(methods) do
     if enabled then
         local b;
-        b = hookfunction(game[method], newcclosure(function(self, ...) 
+        b = hookfunction(game.HttpService[method], newcclosure(function(self, ...) 
             printf("game.%s(game, %s)\n\n", method, Serializer.FormatArguments(...));
             return b(self, ...);
         end));
