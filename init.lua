@@ -167,10 +167,11 @@ if syn and syn.websocket then
     end);
 
     local HttpPost;
-HttpPost = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
-    printf("game.HttpService.HttpPost(HttpService, %s)\n\n", Serializer.FormatArguments(...));
-    return HttpPost(self, ...);
-end);
+    HttpPost = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
+        printf("game.Service.HttpPost(game, %s)\n\n", Serializer.FormatArguments(...));
+        return HttpPost(self, ...);
+    end);
+end
 
 for method, enabled in Pairs(methods) do
     if enabled then
