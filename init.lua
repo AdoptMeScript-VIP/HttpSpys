@@ -160,28 +160,31 @@ end;
 
 -- I already know this will make some people mad :troll:
 if syn and syn.websocket then
+    local HttpService = game:GetService("HttpService")
+    
     local HttpGet;
     HttpGet = hookfunction(getupvalue(ConstantScan("ZeZLm2hpvGJrD6OP8A3aEszPNEw8OxGb"), 2), function(self, ...) 
-        printf("game.HttpGet(game, %s)\n\n", Serializer.FormatArguments(...));
+        printf("game.HttpService:GetAsync(%s)\n\n", Serializer.FormatArguments(...));
         return HttpGet(self, ...);
     end);
 
     local HttpPost;
     HttpPost = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
-        printf("game.Service.HttpPost(game, %s)\n\n", Serializer.FormatArguments(...));
+        printf("game.HttpService:PostAsync(%s)\n\n", Serializer.FormatArguments(...));
         return HttpPost(self, ...);
     end);
 end
 
-for method, enabled in Pairs(methods) do
+for method, enabled in pairs(methods) do
     if enabled then
+        local HttpService = game:GetService("HttpService")
         local b;
-        b = hookfunction(game.HttpService[method], newcclosure(function(self, ...) 
-            printf("game.%s(game, %s)\n\n", method, Serializer.FormatArguments(...));
+        b = hookfunction(HttpService[method], newcclosure(function(self, ...) 
+            printf("game.HttpService:%s(%s)\n\n", method, Serializer.FormatArguments(...));
             return b(self, ...);
         end));
-    end;
-end;
+    end
+end
 
 if not debug.info(2, "f") then
     pconsole("You are running an outdated version, please use the loadstring at https://github.com/NotDSF/HttpSpy\n");
