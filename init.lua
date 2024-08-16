@@ -1,83 +1,30 @@
---[[
-    HttpSpy v1.1.3
-]]
+assert(syn, "Unsupported exploit");
 
-if rconsoleprint then
-    rconsoleprint("Join Discord frfr https://discord.gg/JwNQ6HZGFw")
-end;
+local version = "v1.0.4";
+local logname = string.format("HttpSpy/logs/%s-log.txt", os.date("%d_%m_%y")); -- americans malding rn
+local serializerpath = string.format("HttpSpy/serializer-%s.lua", version);
 
-assert(syn or http, "Unsupport exploit (should support syn.request or http.request)");
+if not isfolder("HttpSpy") then makefolder("HttpSpy") end;
+if not isfolder("HttpSpy/logs") then makefolder("HttpSpy/logs") end;
+if not isfile(logname) then writefile(logname, "") end;
+if not isfile(serializerpath) then writefile(serializerpath, game:HttpGet("https://raw.githubusercontent.com/NotDSF/leopard/main/rbx/leopard-syn.lua")); end;
 
-local options = ({...})[1] or { AutoDecode = true, Highlighting = true, SaveLogs = true, CLICommands = true, ShowResponse = true, BlockedURLs = {}, API = true };
-local version = "v1.1.3";
-local logname = string.format("%d-%s-log.txt", game.PlaceId, os.date("%d_%m_%y"));
-
-if options.SaveLogs then
-    writefile(logname, string.format("Http Logs from %s\n\n", os.date("%d/%m/%y"))) 
-end;
-
-local Serializer = loadstring(game:HttpGet("https://raw.githubusercontent.com/NotDSF/leopard/main/rbx/leopard-syn.lua"))();
-local clonef = clonefunction;
-local pconsole = clonef(rconsoleprint);
-local format = clonef(string.format);
-local gsub = clonef(string.gsub);
-local match = clonef(string.match);
-local append = clonef(appendfile);
-local Type = clonef(type);
-local crunning = clonef(coroutine.running);
-local cwrap = clonef(coroutine.wrap);
-local cresume = clonef(coroutine.resume);
-local cyield = clonef(coroutine.yield);
-local Pcall = clonef(pcall);
-local Pairs = clonef(pairs);
-local Error = clonef(error);
-local getnamecallmethod = clonef(getnamecallmethod);
-local blocked = options.BlockedURLs;
-local enabled = true;
-local reqfunc = (syn or http).request;
-local libtype = syn and "syn" or "http";
-local hooked = {};
-local proxied = {};
+local Serializer = loadstring(readfile(serializerpath))()
+local pconsole = rconsoleprint;
+local format = string.format;
+local gsub = string.gsub;
+local append = appendfile;
 local methods = {
-    HttpGet = not syn,
-    HttpGetAsync = not syn,
+    HttpGet = true,
+    HttpGetAsync = true,
     GetObjects = true,
-    HttpPost = not syn,
-    HttpPostAsync = not syn
+    HttpPost = true,
+    HttpPostAsync = true
 }
 
-Serializer.UpdateConfig({ highlighting = options.Highlighting });
-
-local RecentCommit = game.HttpService:JSONDecode(game:HttpGet("https://api.github.com/repos/NotDSF/HttpSpy/commits?per_page=1&path=init.lua"))[1].commit.message;
-local OnRequest = Instance.new("BindableEvent");
-
 local function printf(...) 
-    if options.SaveLogs then
-        append(logname, gsub(format(...), "%\27%[%d+m", ""));
-    end;
+    append(logname, gsub(format(...), "%\27%[%d+m", ""));
     return pconsole(format(...));
-end;
-
-local function ConstantScan(constant)
-    for i,v in Pairs(getgc(true)) do
-        if type(v) == "function" and islclosure(v) and getfenv(v).script == getfenv(saveinstance).script and table.find(debug.getconstants(v), constant) then
-            return v;
-        end;
-    end;
-end;
-
-local function DeepClone(tbl, cloned)
-    cloned = cloned or {};
-
-    for i,v in Pairs(tbl) do
-        if Type(v) == "table" then
-            cloned[i] = DeepClone(v);
-            continue;
-        end;
-        cloned[i] = v;
-    end;
-
-    return cloned;
 end;
 
 local __namecall, __request;
@@ -85,147 +32,86 @@ __namecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
     local method = getnamecallmethod();
 
     if methods[method] then
-        printf("game:%s(%s)\n\n", method, Serializer.FormatArguments(...));
+        printf("game:%s(%s)\n", method, Serializer.FormatArguments(...));
     end;
 
     return __namecall(self, ...);
 end));
 
-__request = hookfunction(reqfunc, newcclosure(function(req) 
-    if Type(req) ~= "table" then return __request(req); end;
-    
-    local RequestData = DeepClone(req);
-    if not enabled then
-        return __request(req);
-    end;
-
-    if Type(RequestData.Url) ~= "string" then return __request(req) end;
-
-    if not options.ShowResponse then
-        printf("%s.request(%s)\n\n", libtype, Serializer.Serialize(RequestData));
-        return __request(req);
-    end;
-
-    local t = crunning();
-    cwrap(function() 
-        if RequestData.Url and blocked[RequestData.Url] then
-            printf("%s.request(%s) -- blocked url\n\n", libtype, Serializer.Serialize(RequestData));
-            return cresume(t, {});
-        end;
-
-        if RequestData.Url then
-            local Host = string.match(RequestData.Url, "https?://(%w+.%w+)/");
-            if Host and proxied[Host] then
-                RequestData.Url = gsub(RequestData.Url, Host, proxied[Host], 1);
-            end; 
-        end;
-
-        OnRequest:Fire(RequestData);
-
-        local ok, ResponseData = Pcall(__request, RequestData); -- I know of a detection with this
-        if not ok then
-            Error(ResponseData, 0);
-        end;
-
+__request = hookfunction(syn.request, newcclosure(function(req) 
+    local BE = Instance.new("BindableEvent");
+    coroutine.wrap(function() 
+        local ResponseData = __request(req);
         local BackupData = {};
-        for i,v in Pairs(ResponseData) do
+
+        for i,v in pairs(ResponseData) do
             BackupData[i] = v;
         end;
 
-        if BackupData.Headers["Content-Type"] and match(BackupData.Headers["Content-Type"], "application/json") and options.AutoDecode then
+        if BackupData.Headers["Content-Type"] == "application/json" then
             local body = BackupData.Body;
-            local ok, res = Pcall(game.HttpService.JSONDecode, game.HttpService, body);
+            local ok, res = pcall(game.HttpService.JSONDecode, game.HttpService, body);
+            
             if ok then
                 BackupData.Body = res;
             end;
         end;
 
-        printf("%s.request(%s)\n\nResponse Data: %s\n\n", libtype, Serializer.Serialize(RequestData), Serializer.Serialize(BackupData));
-        cresume(t, hooked[RequestData.Url] and hooked[RequestData.Url](ResponseData) or ResponseData);
+        printf("syn.request(%s)\n\nResponse Data: %s\n", Serializer.Serialize(req), Serializer.Serialize(BackupData));
+        BE.Fire(BE, ResponseData);
     end)();
-    return cyield();
+    return BE.Event:Wait();
 end));
 
-if request then
-    replaceclosure(request, reqfunc);
-end;
-
-if syn and syn.websocket then
-    local WsConnect, WsBackup = debug.getupvalue(syn.websocket.connect, 1);
-    WsBackup = hookfunction(WsConnect, function(...) 
-        printf("syn.websocket.connect(%s)\n\n", Serializer.FormatArguments(...));
-        return WsBackup(...);
-    end);
-end;
-
--- I already know this will make some people mad :troll:
-if syn and syn.websocket then
-    local HttpService = game:GetService("HttpService")
+if messagebox("The websocket spy can be easily detected, are you sure you want to use it?", "Alert", 1) == 1 then
+    local id = 1;
+    __websocket = hookfunction(syn.websocket.connect, function(url) 
+        local BE = Instance.new("BindableEvent");
+        coroutine.wrap(function() 
+            local WebsocketId = "WS_" .. id;
+            local WebSocket = __websocket(url);
+            local mt = getrawmetatable(WebSocket);
+            local __send, __close = WebSocket.Send, WebSocket.Close;
     
-    local HttpGet;
-    HttpGet = hookfunction(getupvalue(ConstantScan("ZeZLm2hpvGJrD6OP8A3aEszPNEw8OxGb"), 2), function(self, ...) 
-        printf("game.HttpService:GetAsync(%s)\n\n", Serializer.FormatArguments(...));
-        return HttpGet(self, ...);
+            printf("local %s = syn.websocket.connect(%s)\n", WebsocketId, Serializer.FormatArguments(url));
+            
+            mt.__newindex = function(self, ...) 
+                return rawset(self, ...);
+            end;
+    
+            WebSocket.Send = function(self, message) 
+                __send(self, message);
+                printf("%s:Send(%s)\n", WebsocketId, Serializer.FormatArguments(message));
+            end;
+    
+            WebSocket.Close = function(self) 
+                __close(self);
+                printf("%s:Close()\n", WebsocketId);
+            end;
+    
+            WebSocket.OnMessage:Connect(function(message) 
+                printf("%s recieved message: %s\n", WebsocketId, Serializer.FormatArguments(message));
+            end);
+    
+            WebSocket.OnClose:Connect(function()
+                printf("%s closed!\n", WebsocketId);
+            end);
+
+            BE.Fire(BE, WebSocket);
+        end)();
+        id = id + 1;
+        return BE.Event:Wait();
     end);
-
-    local HttpPost;
-    HttpPost = hookfunction(getupvalue(ConstantScan("gpGXBVpEoOOktZWoYECgAY31o0BlhOue"), 2), function(self, ...) 
-        printf("game.HttpService:PostAsync(%s)\n\n", Serializer.FormatArguments(...));
-        return HttpPost(self, ...);
-    end);
-end
-
-for method, enabled in pairs(methods) do
-    if enabled then
-        local HttpService = game:GetService("HttpService")
-        local b;
-        b = hookfunction(HttpService[method], newcclosure(function(self, ...) 
-            printf("game.HttpService:%s(%s)\n\n", method, Serializer.FormatArguments(...));
-            return b(self, ...);
-        end));
-    end
-end
-
-if not debug.info(2, "f") then
-    pconsole("You are running an outdated version, please use the loadstring at https://github.com/NotDSF/HttpSpy\n");
 end;
 
-pconsole(format("HttpSpy %s (Creator: https://github.com/NotDSF)\nChange Logs:\n\t%s\nLogs are automatically being saved to: \27[32m%s\27[0m\n\n", version, RecentCommit, options.SaveLogs and logname or "(You aren't saving logs, enable SaveLogs if you want to save logs)"));
+local RecentCommit = game.HttpService:JSONDecode(game.HttpGet(game, "https://api.github.com/repos/NotDSF/HttpSpy/commits?per_page=1&path=init.lua"))[1].commit.message;
 
-if not options.API then return end;
-
-local API = {};
-API.OnRequest = OnRequest.Event;
-
-function API:HookSynRequest(url, hook) 
-    hooked[url] = hook;
+for method in pairs(methods) do
+    local b;
+    b = hookfunction(game[method], newcclosure(function(self, ...) 
+        printf("game.%s(game, %s)\n", method, Serializer.FormatArguments(...));
+        return b(self, ...);
+    end));
 end;
 
-function API:ProxyHost(host, proxy) 
-    proxied[host] = proxy;
-end;
-
-function API:RemoveProxy(host) 
-    if not proxied[host] then
-        error("host isn't proxied", 0);
-    end;
-    proxied[host] = nil;
-end;
-
-function API:UnHookSynRequest(url) 
-    if not hooked[url] then
-        error("url isn't hooked", 0);
-    end;
-    hooked[url] = nil;
-end
-
-function API:BlockUrl(url) 
-    blocked[url] = true;
-end;
-
-function API:WhitelistUrl(url) 
-    blocked[url] = false;
-end;
-
-return API;
- 
+pconsole(format("HttpSpy %s\nCreated by dsf#2711\nChange Logs:\n\t%s\nLogs are automatically being saved to: %s\n\n", version, RecentCommit, logname))
